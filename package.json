@@ -1,0 +1,20 @@
+{
+  "name": "2048-vue-pixi",
+  "version": "1.0.0",
+  "description": "2048 Game built with Vue 3 and Pixi.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.4.0",
+    "pixi.js": "^7.3.0",
+    "howler": "^2.2.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}
