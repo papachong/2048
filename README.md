@@ -1,6 +1,8 @@
 # 2048 Game - Vue + Pixi.js 版本
 
 这是使用 Vue 3 和 Pixi.js 开发的2048游戏，包含完整的功能：
+线上游戏地址：
+https://ruhooai.com/2048/
 
 ## ✨ 特性
 
