@@ -1,6 +1,6 @@
 # 2048 Game - Vue + Pixi.js 版本
 
-这是使用 Vue 3 和 Pixi.js 重构的2048游戏，包含完整的功能：
+这是使用 Vue 3 和 Pixi.js 开发的2048游戏，包含完整的功能：
 
 ## ✨ 特性
 
@@ -15,16 +15,6 @@
 
 ## 🚀 快速开始
 
-### 方法 1: 使用原始Phaser版本（已有）
-```bash
-# 直接打开 index.html 或通过HTTP服务器
-python3 -m http.server 8000
-# 访问 http://localhost:8000
-```
-
-### 方法 2: 使用Vue + Pixi.js版本
-
-#### 选项A - 使用npm（推荐）
 ```bash
 # 安装依赖
 npm install
@@ -34,31 +24,21 @@ npm run dev
 
 # 构建生产版本
 npm run build
-```
 
-#### 选项B - 直接运行（无需安装）
-```bash
-# 使用Python HTTP服务器
-python3 -m http.server 8000
-
-# 访问任意一个HTML文件
-# http://localhost:8000/index.html (Phaser版本)
-# http://localhost:8000/game-vue.html (Vue版本 - 开发中)
+# 预览生产构建
+npm run preview
 ```
 
 ## 📁 项目结构
 
 ```
 2048/
-├── index.html              # 原始Phaser版本入口
-├── game.js                 # Phaser游戏逻辑
-├── index-vue.html          # Vue版本入口（需npm run dev）
-├── game-vue.html           # Vue单文件版本（CDN）
+├── index.html              # Vite 入口
 ├── package.json            # 项目配置
 ├── vite.config.js          # Vite配置
 └── src/                    # Vue源代码
     ├── main.js             # 应用入口
-    ├── App.vue             # 主组件
+    ├── App.vue             # 主组件（含菜单、登录、排行）
     ├── style.css           # 全局样式
     ├── managers/           # 核心逻辑管理器
     │   ├── GameManager.js  # 游戏逻辑
@@ -110,18 +90,13 @@ python3 -m http.server 8000
 4. **流畅动画** - 自定义缓动函数实现平滑动画
 5. **移动优先** - 响应式设计，完美适配各种设备
 
-## 📊 功能对比
+## 📊 主要功能
 
-| 功能 | Phaser版本 | Vue+Pixi版本 |
-|------|-----------|-------------|
-| 基础游戏 | ✅ | ✅ |
-| 动画效果 | ⚡ 简单 | ⚡⚡⚡ 丰富流畅 |
-| 撤销功能 | ❌ | ✅ (10步) |
-| 保存/加载 | ⚠️ 占位 | ✅ 完整实现 |
-| 排行榜 | ❌ | ✅ 前10名 |
-| 音效 | ❌ | ✅ 完整 |
-| 响应式 | ⚠️ 部分 | ✅ 完全响应式 |
-| 代码架构 | 单文件 | 模块化 |
+- 流畅动画的 2048 核心玩法（移动、合并、撤销）
+- 本地存档与读取（按用户分隔）
+- 排行榜前 10 记录、用户登录/注册
+- 键盘、鼠标拖拽、触摸滑动多端控制
+- 开场烟花、合并/胜利/失败音效，可切换静音
 
 ## 🐛 已知问题
 

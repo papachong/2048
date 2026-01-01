@@ -28,6 +28,7 @@
         <div v-if="showMenu" class="menu-dropdown">
           <button class="menu-item" type="button" @click.stop="handleMenuSave">💾 保存游戏</button>
           <button class="menu-item" type="button" @click.stop="handleMenuLoad">📂 加载游戏</button>
+          <button class="menu-item" type="button" @click.stop="handleMenuShare">🔗 分享链接</button>
           <button class="menu-item danger" type="button" @click.stop="handleMenuExit" :disabled="!currentUser">🚪 退出游戏</button>
         </div>
       </div>
@@ -326,6 +327,34 @@ export default {
       closeMenu()
     }
 
+    const shareGame = async () => {
+      const shareUrl = window.location.href
+      const shareData = {
+        title: '2048',
+        text: `${playerName.value}邀请你来挑战 2048！`,
+        url: shareUrl
+      }
+
+      try {
+        if (navigator.share) {
+          await navigator.share(shareData)
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(shareUrl)
+          alert('分享链接已复制到剪贴板')
+        } else {
+          alert('当前浏览器不支持分享，请手动复制链接')
+        }
+      } catch (err) {
+        console.warn('分享失败', err)
+        alert('分享失败，请稍后再试')
+      }
+    }
+
+    const handleMenuShare = async () => {
+      await shareGame()
+      closeMenu()
+    }
+
     const handleMenuExit = () => {
       logout()
       closeMenu()
@@ -618,6 +647,7 @@ export default {
       toggleMenu,
       handleMenuSave,
       handleMenuLoad,
+      handleMenuShare,
       handleMenuExit
     }
   }
