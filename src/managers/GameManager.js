@@ -1,6 +1,6 @@
 // 游戏核心逻辑管理器
 export class GameManager {
-  constructor() {
+  constructor(options = {}) {
     this.boardSize = 4
     this.board = []
     this.score = 0
@@ -13,6 +13,20 @@ export class GameManager {
     this.startTime = null
     this.playerName = this.loadPlayerName()
     this.currentUser = this.playerName || '玩家'
+    this.testMode = options.testMode || false // 测试模式：禁用自动生成新方块
+  }
+
+  // LocalStorage兼容层（支持Node.js测试环境）
+  getStorage() {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage
+    }
+    // Node.js环境的fallback
+    return {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {}
+    }
   }
 
   // 初始化游戏板
@@ -106,8 +120,11 @@ export class GameManager {
 
     if (moved) {
       this.moveCount++
-      const newTile = this.spawnRandomTile()
-      if (newTile) tiles.push(newTile)
+      // 测试模式下不自动生成新方块
+      if (!this.testMode) {
+        const newTile = this.spawnRandomTile()
+        if (newTile) tiles.push(newTile)
+      }
       
       if (this.score > this.bestScore) {
         this.bestScore = this.score
@@ -119,167 +136,263 @@ export class GameManager {
       this.history.pop() // 没有移动则撤销保存
     }
 
-    return { moved, tiles, merges: this.findMerges(oldBoard), moveAnimations }
+    // 从动画数据中提取真正的合并位置
+    const merges = this.extractMergesFromAnimations(moveAnimations)
+    
+    return { moved, tiles, merges, moveAnimations }
   }
 
+  // ==================== 核心移动算法 ====================
+  
+  /**
+   * 向左移动
+   * 每行从左到右处理，方块向左滑动并合并
+   */
   moveLeft(moveAnimations) {
     let moved = false
     for (let row = 0; row < this.boardSize; row++) {
-      const originalRow = [...this.board[row]]
-      const { line, moves } = this.mergeLine(originalRow, 'left')
-      this.board[row] = line
-      if (!this.arraysEqual(originalRow, this.board[row])) {
+      const result = this.slideAndMerge(this.board[row], row, 'row', 'left', moveAnimations)
+      if (result.moved) {
+        this.board[row] = result.line
         moved = true
-        moves.forEach(m => {
-          m.from.forEach(src => {
-            moveAnimations.push({
-              from: { row, col: src },
-              to: { row, col: m.to },
-              value: originalRow[src],
-              merged: m.merged,
-              resultValue: m.resultValue
-            })
-          })
-        })
       }
     }
     return moved
   }
 
+  /**
+   * 向右移动
+   * 每行从右到左处理，方块向右滑动并合并
+   */
   moveRight(moveAnimations) {
     let moved = false
     for (let row = 0; row < this.boardSize; row++) {
-      const originalRow = [...this.board[row]]
-      const { line, moves } = this.mergeLine(originalRow, 'right')
-      this.board[row] = line
-      if (!this.arraysEqual(originalRow, this.board[row])) {
+      const result = this.slideAndMerge(this.board[row], row, 'row', 'right', moveAnimations)
+      if (result.moved) {
+        this.board[row] = result.line
         moved = true
-        moves.forEach(m => {
-          m.from.forEach(src => {
-            moveAnimations.push({
-              from: { row, col: src },
-              to: { row, col: m.to },
-              value: originalRow[src],
-              merged: m.merged,
-              resultValue: m.resultValue
-            })
-          })
-        })
       }
     }
     return moved
   }
 
+  /**
+   * 向上移动
+   * 每列从上到下处理，方块向上滑动并合并
+   */
   moveUp(moveAnimations) {
     let moved = false
     for (let col = 0; col < this.boardSize; col++) {
+      // 提取列数据
       const column = []
       for (let row = 0; row < this.boardSize; row++) {
         column.push(this.board[row][col])
       }
-      const originalColumn = [...column]
-      const { line: mergedColumn, moves } = this.mergeLine(column, 'left')
-      for (let row = 0; row < this.boardSize; row++) {
-        this.board[row][col] = mergedColumn[row]
-      }
-      if (!this.arraysEqual(originalColumn, mergedColumn)) {
+      const result = this.slideAndMerge(column, col, 'col', 'left', moveAnimations)
+      if (result.moved) {
+        // 写回列数据
+        for (let row = 0; row < this.boardSize; row++) {
+          this.board[row][col] = result.line[row]
+        }
         moved = true
-        moves.forEach(m => {
-          m.from.forEach(src => {
-            moveAnimations.push({
-              from: { row: src, col },
-              to: { row: m.to, col },
-              value: originalColumn[src],
-              merged: m.merged,
-              resultValue: m.resultValue
-            })
-          })
-        })
       }
     }
     return moved
   }
 
+  /**
+   * 向下移动
+   * 每列从下到上处理，方块向下滑动并合并
+   */
   moveDown(moveAnimations) {
     let moved = false
     for (let col = 0; col < this.boardSize; col++) {
+      // 提取列数据
       const column = []
       for (let row = 0; row < this.boardSize; row++) {
         column.push(this.board[row][col])
       }
-      const originalColumn = [...column]
-      const { line: mergedColumn, moves } = this.mergeLine(column, 'right')
-      for (let row = 0; row < this.boardSize; row++) {
-        this.board[row][col] = mergedColumn[row]
-      }
-      if (!this.arraysEqual(originalColumn, mergedColumn)) {
+      const result = this.slideAndMerge(column, col, 'col', 'right', moveAnimations)
+      if (result.moved) {
+        // 写回列数据
+        for (let row = 0; row < this.boardSize; row++) {
+          this.board[row][col] = result.line[row]
+        }
         moved = true
-        moves.forEach(m => {
-          m.from.forEach(src => {
-            moveAnimations.push({
-              from: { row: src, col },
-              to: { row: m.to, col },
-              value: originalColumn[src],
-              merged: m.merged,
-              resultValue: m.resultValue
-            })
-          })
-        })
       }
     }
     return moved
   }
 
-  mergeLine(line, direction) {
-    const working = direction === 'right' ? [...line].reverse() : [...line]
-    const active = working
-      .map((value, index) => ({ value, index }))
-      .filter(item => item.value !== 0)
-    const result = Array(this.boardSize).fill(0)
-    const moves = []
-    let target = 0
-    let i = 0
-
-    while (i < active.length) {
-      const current = active[i]
-      if (i < active.length - 1 && current.value === active[i + 1].value) {
-        const mergedValue = current.value * 2
-        result[target] = mergedValue
-        moves.push({
-          from: [current.index, active[i + 1].index],
-          to: target,
-          value: current.value,
-          merged: true,
-          resultValue: mergedValue
-        })
-        this.score += mergedValue
-        if (mergedValue === 2048 && !this.won) {
-          this.won = true
-        }
-        i += 2
-      } else {
-        result[target] = current.value
-        moves.push({
-          from: [current.index],
-          to: target,
-          value: current.value,
-          merged: false,
-          resultValue: current.value
-        })
-        i += 1
+  /**
+   * 核心算法：滑动并合并一行/列
+   * 
+   * 算法步骤：
+   * 1. 提取所有非零方块，保留原始位置信息
+   * 2. 根据方向决定处理顺序和放置位置
+   * 3. 相邻相同值合并（每个方块每次移动最多合并一次）
+   * 4. 将结果放置到目标边缘
+   * 
+   * @param {number[]} line - 原始行/列数据
+   * @param {number} lineIndex - 行号或列号
+   * @param {string} type - 'row' 或 'col'
+   * @param {string} direction - 'left' 或 'right'（left也用于up，right也用于down）
+   * @param {Array} moveAnimations - 动画数据收集数组
+   * @returns {{line: number[], moved: boolean}}
+   */
+  slideAndMerge(line, lineIndex, type, direction, moveAnimations) {
+    const size = this.boardSize
+    const originalLine = [...line]
+    
+    // 步骤1：提取非零方块及其原始索引
+    const tiles = []
+    for (let i = 0; i < size; i++) {
+      if (line[i] !== 0) {
+        tiles.push({ value: line[i], originalPos: i })
       }
-      target += 1
     }
-
-    if (direction === 'right') {
-      result.reverse()
-      moves.forEach(m => {
-        m.to = this.boardSize - 1 - m.to
-        m.from = m.from.map(idx => this.boardSize - 1 - idx)
-      })
+    
+    // 如果没有方块，无需处理
+    if (tiles.length === 0) {
+      return { line: originalLine, moved: false }
     }
+    
+    // 步骤2：处理合并
+    // 向左/上：从左往右合并
+    // 向右/下：从右往左合并
+    const merged = []
+    
+    if (direction === 'left') {
+      // 从左往右处理
+      let i = 0
+      while (i < tiles.length) {
+        const current = tiles[i]
+        // 检查是否可以与下一个方块合并
+        if (i + 1 < tiles.length && tiles[i + 1].value === current.value) {
+          // 合并！
+          const newValue = current.value * 2
+          merged.push({
+            value: newValue,
+            sources: [current.originalPos, tiles[i + 1].originalPos],
+            isMerged: true
+          })
+          // 更新分数
+          this.score += newValue
+          // 检查是否获胜
+          if (newValue === 2048 && !this.won) {
+            this.won = true
+          }
+          i += 2 // 跳过两个方块
+        } else {
+          // 不合并，保留原值
+          merged.push({
+            value: current.value,
+            sources: [current.originalPos],
+            isMerged: false
+          })
+          i += 1
+        }
+      }
+    } else {
+      // 从右往左处理（从数组末尾开始）
+      let i = tiles.length - 1
+      while (i >= 0) {
+        const current = tiles[i]
+        // 检查是否可以与前一个方块合并
+        if (i - 1 >= 0 && tiles[i - 1].value === current.value) {
+          // 合并！
+          const newValue = current.value * 2
+          merged.unshift({  // 添加到数组开头
+            value: newValue,
+            sources: [tiles[i - 1].originalPos, current.originalPos],
+            isMerged: true
+          })
+          // 更新分数
+          this.score += newValue
+          // 检查是否获胜
+          if (newValue === 2048 && !this.won) {
+            this.won = true
+          }
+          i -= 2 // 跳过两个方块
+        } else {
+          // 不合并，保留原值
+          merged.unshift({  // 添加到数组开头
+            value: current.value,
+            sources: [current.originalPos],
+            isMerged: false
+          })
+          i -= 1
+        }
+      }
+    }
+    
+    // 步骤3：构建结果数组，放置到目标边缘
+    const result = Array(size).fill(0)
+    
+    if (direction === 'left') {
+      // 结果从索引0开始放置
+      for (let j = 0; j < merged.length; j++) {
+        result[j] = merged[j].value
+        merged[j].targetPos = j
+      }
+    } else {
+      // 结果从末尾开始放置
+      for (let j = 0; j < merged.length; j++) {
+        const targetPos = size - merged.length + j
+        result[targetPos] = merged[j].value
+        merged[j].targetPos = targetPos
+      }
+    }
+    
+    // 检查是否有变化
+    const moved = !this.arraysEqual(originalLine, result)
+    
+    // 步骤4：生成动画数据
+    if (moved) {
+      for (const item of merged) {
+        for (const srcPos of item.sources) {
+          const animation = {
+            value: originalLine[srcPos],
+            merged: item.isMerged,
+            resultValue: item.value
+          }
+          
+          if (type === 'row') {
+            animation.from = { row: lineIndex, col: srcPos }
+            animation.to = { row: lineIndex, col: item.targetPos }
+          } else {
+            animation.from = { row: srcPos, col: lineIndex }
+            animation.to = { row: item.targetPos, col: lineIndex }
+          }
+          
+          moveAnimations.push(animation)
+        }
+      }
+    }
+    
+    return { line: result, moved }
+  }
 
-    return { line: result, moves }
+  /**
+   * 从动画数据中提取真正的合并位置
+   * 只有标记为merged的目标位置才是真正的合并
+   */
+  extractMergesFromAnimations(moveAnimations) {
+    const mergePositions = new Map()
+    
+    // 遍历所有动画，找出合并动画的目标位置
+    moveAnimations.forEach(anim => {
+      if (anim.merged) {
+        const key = `${anim.to.row}-${anim.to.col}`
+        mergePositions.set(key, {
+          row: anim.to.row,
+          col: anim.to.col,
+          value: anim.resultValue
+        })
+      }
+    })
+    
+    return Array.from(mergePositions.values())
   }
 
   findMerges(oldBoard) {
@@ -336,18 +449,19 @@ export class GameManager {
       startTime: this.startTime,
       timestamp: Date.now()
     }
-    localStorage.setItem(key, JSON.stringify(gameState))
+    this.getStorage().setItem(key, JSON.stringify(gameState))
   }
 
   loadGame() {
     const key = this.getStorageKey('2048-game-state')
-    let saved = localStorage.getItem(key)
+    const storage = this.getStorage()
+    let saved = storage.getItem(key)
 
     // 兼容旧版未分用户的存档
     if (!saved) {
-      saved = localStorage.getItem('2048-game-state')
+      saved = storage.getItem('2048-game-state')
       if (saved) {
-        localStorage.setItem(key, saved)
+        storage.setItem(key, saved)
       }
     }
 
@@ -366,11 +480,11 @@ export class GameManager {
 
   // 最佳分数
   saveBestScore() {
-    localStorage.setItem('2048-best-score', this.bestScore.toString())
+    this.getStorage().setItem('2048-best-score', this.bestScore.toString())
   }
 
   loadBestScore() {
-    const saved = localStorage.getItem('2048-best-score')
+    const saved = this.getStorage().getItem('2048-best-score')
     return saved ? parseInt(saved) : 0
   }
 
@@ -389,17 +503,17 @@ export class GameManager {
     scores.sort((a, b) => b.score - a.score)
     scores.splice(10) // 只保留前10名
     
-    localStorage.setItem('2048-leaderboard', JSON.stringify(scores))
+    this.getStorage().setItem('2048-leaderboard', JSON.stringify(scores))
   }
 
   getLeaderboard() {
-    const saved = localStorage.getItem('2048-leaderboard')
+    const saved = this.getStorage().getItem('2048-leaderboard')
     return saved ? JSON.parse(saved) : []
   }
 
   setPlayerName(name) {
     this.playerName = name || '玩家'
-    localStorage.setItem('2048-player-name', this.playerName)
+    this.getStorage().setItem('2048-player-name', this.playerName)
   }
 
   setCurrentUser(name) {
@@ -412,7 +526,7 @@ export class GameManager {
   }
 
   loadPlayerName() {
-    const saved = localStorage.getItem('2048-player-name')
+    const saved = this.getStorage().getItem('2048-player-name')
     return saved || '玩家'
   }
 

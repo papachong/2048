@@ -171,17 +171,19 @@ export class PixiRenderer {
         const tileKey = `${row}-${col}`
         let tile = this.tiles[tileKey]
 
-        if (tile && tile.value !== value) {
-          this.tileContainer.removeChild(tile)
-          tile.destroy({ children: true })
-          tile = null
-        }
-
-        if (!tile) {
+        // 如果方块不存在或值不匹配，需要创建新方块
+        if (!tile || tile.value !== value) {
+          // 清理旧方块（如果存在）
+          if (tile) {
+            this.tileContainer.removeChild(tile)
+            tile.destroy({ children: true })
+          }
+          // 创建新方块
           tile = this.createTile(row, col, value)
           tile.value = value
           this.tileContainer.addChild(tile)
         } else {
+          // 方块存在且值匹配，确保位置正确
           const pos = this.getTilePosition(row, col)
           tile.x = pos.x
           tile.y = pos.y
@@ -194,8 +196,11 @@ export class PixiRenderer {
           const isMerged = mergedTiles.some(t => t.row === row && t.col === col)
           if (isNew) {
             await this.animateTileAppear(tile, false)
+          } else if (isMerged) {
+            // 合并的方块应该有弹出动画
+            await this.animateTileAppear(tile, true)
           } else {
-            // merged tiles and unchanged tiles pop in instantly
+            // 其他方块直接显示
             tile.scale.set(1)
             tile.alpha = 1
           }
@@ -219,7 +224,8 @@ export class PixiRenderer {
 
   async animateTileAppear(tile, isMerged = false) {
     return new Promise(resolve => {
-      const duration = isMerged ? 120 : 90
+      // 缩短合并动画时间：120ms -> 60ms
+      const duration = isMerged ? 60 : 90
       const targetScale = isMerged ? 1.08 : 1
       const startTime = Date.now()
       
@@ -251,7 +257,8 @@ export class PixiRenderer {
 
   async animateBounce(tile) {
     return new Promise(resolve => {
-      const duration = 70
+      // 缩短回弹动画时间：70ms -> 40ms
+      const duration = 40
       const startTime = Date.now()
       
       const animate = () => {
@@ -277,24 +284,49 @@ export class PixiRenderer {
     const animations = moveAnimations.map(move => this.animateMove(move))
     await Promise.all(animations)
 
-    const updatedTiles = { ...this.tiles }
+    // 保存原始 tiles 作为只读源，避免在处理过程中被修改
+    const originalTiles = this.tiles
+    const updatedTiles = {}
+    const tilesToDelete = new Set()
+    const tilesMovedFrom = new Set()
 
+    // 第一遍：标记要删除的方块（merged的源方块）和移动源
+    moveAnimations.forEach(move => {
+      const fromKey = `${move.from.row}-${move.from.col}`
+      tilesMovedFrom.add(fromKey)
+      if (move.merged) {
+        tilesToDelete.add(fromKey)
+      }
+    })
+
+    // 第二遍：处理移动，从原始tiles读取，写入updatedTiles
     moveAnimations.forEach(move => {
       const fromKey = `${move.from.row}-${move.from.col}`
       const toKey = `${move.to.row}-${move.to.col}`
-      const tile = this.tiles[fromKey]
+      const tile = originalTiles[fromKey]
       if (!tile) return
 
       if (move.merged) {
+        // 合并的方块：删除源位置的方块
         this.tileContainer.removeChild(tile)
         tile.destroy({ children: true })
-        delete updatedTiles[fromKey]
       } else {
+        // 非合并移动：更新方块位置
         const pos = this.getTilePosition(move.to.row, move.to.col)
         tile.x = pos.x
         tile.y = pos.y
+        
+        // 更新到新位置
         updatedTiles[toKey] = tile
-        delete updatedTiles[fromKey]
+      }
+    })
+
+    // 第三遍：保留所有没有被移动或删除的方块
+    Object.keys(originalTiles).forEach(key => {
+      // 如果方块没有移动（不在tilesMovedFrom中）且没有被删除（不在tilesToDelete中）
+      // 且目标位置没有被占用（不在updatedTiles中），则保留
+      if (!updatedTiles[key] && !tilesToDelete.has(key) && !tilesMovedFrom.has(key)) {
+        updatedTiles[key] = originalTiles[key]
       }
     })
 

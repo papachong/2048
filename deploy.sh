@@ -6,7 +6,7 @@ set -euo pipefail
 # Optional env overrides: DEPLOY_HOST, DEPLOY_DEST
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HOST="${DEPLOY_HOST:-47.97.155.226}"
+HOST="${DEPLOY_HOST:-root@47.97.155.226}"
 DEST="${DEPLOY_DEST:-/opt/ruhoowww/dist/2048}"
 
 cd "$ROOT_DIR"

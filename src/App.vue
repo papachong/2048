@@ -23,15 +23,20 @@
 
     <!-- 控制按钮 -->
     <div class="controls">
+      <div class="menu-wrapper" ref="menuRef">
+        <button class="btn btn-secondary menu-toggle" @click.stop="toggleMenu" title="菜单">☰</button>
+        <div v-if="showMenu" class="menu-dropdown">
+          <button class="menu-item" type="button" @click.stop="handleMenuSave">💾 保存游戏</button>
+          <button class="menu-item" type="button" @click.stop="handleMenuLoad">📂 加载游戏</button>
+          <button class="menu-item danger" type="button" @click.stop="handleMenuExit" :disabled="!currentUser">🚪 退出游戏</button>
+        </div>
+      </div>
       <button class="btn btn-primary" @click="newGame" title="新游戏">🎮</button>
       <button class="btn btn-secondary" @click="undo" :disabled="!canUndo" title="撤销">↩️</button>
-      <button class="btn btn-secondary" @click="saveGame" title="保存游戏">💾</button>
-      <button class="btn btn-secondary" @click="loadGame" title="加载游戏">📂</button>
       <button class="btn btn-secondary" @click="showLeaderboard = true" title="排行榜">🏆</button>
       <button class="btn btn-secondary" @click="toggleSound" :title="soundEnabled ? '关闭音效' : '开启音效'">
         {{ soundEnabled ? '🔊' : '🔇' }}
       </button>
-      <button class="btn btn-secondary" @click="logout" :disabled="!currentUser" title="退出登录">🚪</button>
     </div>
 
     <!-- 烟花层 -->
@@ -123,6 +128,8 @@ export default {
     const loginError = ref('')
     const loginForm = ref({ username: '', password: '' })
     const fireworksLayer = ref(null)
+    const showMenu = ref(false)
+    const menuRef = ref(null)
 
     let gameManager = null
     let renderer = null
@@ -298,6 +305,36 @@ export default {
         alert('游戏已加载！')
       } else {
         alert('没有保存的游戏')
+      }
+    }
+
+    const toggleMenu = () => {
+      showMenu.value = !showMenu.value
+    }
+
+    const closeMenu = () => {
+      showMenu.value = false
+    }
+
+    const handleMenuSave = () => {
+      saveGame()
+      closeMenu()
+    }
+
+    const handleMenuLoad = async () => {
+      await loadGame()
+      closeMenu()
+    }
+
+    const handleMenuExit = () => {
+      logout()
+      closeMenu()
+    }
+
+    const handleGlobalClick = (e) => {
+      if (!showMenu.value) return
+      if (menuRef.value && !menuRef.value.contains(e.target)) {
+        closeMenu()
       }
     }
 
@@ -523,6 +560,7 @@ export default {
       
       // 添加键盘事件
       window.addEventListener('keydown', handleKeyDown)
+      document.addEventListener('click', handleGlobalClick)
       
       // 开始计时器
       gameTimer = setInterval(() => {
@@ -537,6 +575,7 @@ export default {
 
     onUnmounted(() => {
       window.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('click', handleGlobalClick)
       if (gameTimer) clearInterval(gameTimer)
       if (renderer) renderer.destroy()
     })
@@ -573,7 +612,13 @@ export default {
       handleTouchStart,
       handleTouchMove,
       handleTouchEnd,
-      formatTime
+      formatTime,
+      showMenu,
+      menuRef,
+      toggleMenu,
+      handleMenuSave,
+      handleMenuLoad,
+      handleMenuExit
     }
   }
 }
@@ -698,6 +743,55 @@ export default {
   padding: 4px 0 8px;
   background: transparent;
   box-shadow: none;
+}
+
+.menu-wrapper {
+  position: relative;
+}
+
+.menu-toggle {
+  width: 52px;
+}
+
+.menu-dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  min-width: 180px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1200;
+  backdrop-filter: blur(8px);
+}
+
+.menu-item {
+  width: 100%;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  color: #f5f5f5;
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.menu-item.danger:hover {
+  color: #ff9b9b;
 }
 
 .fireworks-layer {

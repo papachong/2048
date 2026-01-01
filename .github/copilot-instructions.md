@@ -1,0 +1,27 @@
+# Copilot Instructions
+
+- 技术栈：Vue 3 + Vite + Pixi.js 渲染，Composition API + `<script setup>` 风格混用；入口 [src/main.js](../src/main.js) 仅挂载 [src/App.vue](../src/App.vue)。
+- 核心逻辑：`GameManager` 负责棋盘状态、移动/合并、历史撤销与持久化；优先通过它的 API 操作而非直接改动棋盘数据。[src/managers/GameManager.js](../src/managers/GameManager.js)
+- 渲染层：`PixiRenderer` 使用 `renderBoard(board, { animate, newTiles, mergedTiles, moveAnimations })` 驱动方块动画；尺寸随窗口调整，调用前确保容器 ref 已存在。[src/managers/PixiRenderer.js](../src/managers/PixiRenderer.js)
+- 音效：`SoundManager` 基于 Web Audio，首次用户交互需 `unlock()` 以启用；`toggle()` 保存偏好至 `localStorage`。[src/managers/SoundManager.js](../src/managers/SoundManager.js)
+- UI 组件：主 UI 全在 [src/App.vue](../src/App.vue)，包含键盘/鼠标/触摸事件映射、排行榜弹窗、登录/注册、本地菜单下拉（保存/加载/退出）。排行榜展示在 [src/components/Leaderboard.vue](../src/components/Leaderboard.vue)。
+- 数据持久化：
+  - 棋盘/分数：`getStorageKey('2048-game-state')`，按 `currentUser` 分用户保存。
+  - 最佳分数：`2048-best-score`。
+  - 排行榜：`2048-leaderboard`（仅前 10 条）。
+  - 用户与会话：`2048-users` / `2048-auth-session`，用户名+密码简单存储；`migrateLegacyUser()` 会从老的 `2048-player-name` 迁移。
+- 典型交互流程：
+  - 新局：`gameManager.newGame()` 后调用 `renderGame({ animate: true, newTiles: [...] })`，同时播放 `spawn` 音效。
+  - 移动：键盘/滑动 => `handleMove(direction)` -> `gameManager.move(direction)` -> 渲染动画，处理赢/输、烟花、音效。
+  - 撤销：`gameManager.undo()` 后 `renderGame({ animate: false })`。
+  - 保存/加载：菜单项调用 `gameManager.saveGame()` / `loadGame()`，加载成功后重新渲染；失败弹窗提示无存档。
+  - 退出：调用 `logout()` 清理会话，重置用户显示并弹出登录。
+- 事件注意：
+  - 全局 `keydown` 监听方向/WASD；编辑输入时应忽略。
+  - 触摸/鼠标滑动均在 `.game-canvas` 上识别方向，最小阈值 20/30px。
+  - 菜单下拉通过 document click 关闭，组件卸载时记得移除监听。
+- 样式：全局渐变背景在 [src/style.css](../src/style.css)；局部 UI（按钮、弹窗、菜单等）样式在 App.vue 的 scoped 样式里，按钮尺寸在 `.controls .btn` 中统一。
+- 构建/运行：`npm install` 后使用 `npm run dev` 启动；`npm run build` 产生产物；`npm run preview` 本地预览。
+- 测试：`npm test` 或 `npm run test:ui`（Vitest + jsdom）。
+- 常用调试：控制台查看 `gameManager.board`、`score`；通过 `setPlayerName`/`setCurrentUser` 确保排行榜和存档按用户隔离。
+- 提交改动时，保持按钮/菜单交互与移动动画解耦：UI 触发器只调用管理器方法并让 `renderGame` 驱动画面，不直接操作 Pixi 对象。
