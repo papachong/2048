@@ -96,6 +96,21 @@
         </div>
       </div>
     </transition>
+
+    <!-- 页脚 -->
+    <footer class="site-footer">
+      <div class="footer-divider"></div>
+      <div class="footer-line">儒虎智能科技（北京）有限公司</div>
+      <div class="footer-line">
+        <a class="footer-link" href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">京ICP备2025154066号-1</a>
+        <span class="footer-sep">|</span>
+        <a class="footer-link footer-badge" href="https://beian.mps.gov.cn/#/query/webSearch?code=11011402055127" target="_blank" rel="noreferrer">
+          <img src="https://beian.mps.gov.cn/img/logo01.dd7ff50e.png" alt="公安备案" />
+          京公网备11011402055127号
+        </a>
+      </div>
+      <div class="footer-line">Copyright © 2024-2025 Ruhoo AI. All Rights Reserved. 儒虎智能科技 版权所有</div>
+    </footer>
   </div>
 </template>
 
@@ -345,6 +360,8 @@ export default {
           alert('当前浏览器不支持分享，请手动复制链接')
         }
       } catch (err) {
+        // 用户主动取消分享时不提示
+        if (err?.name === 'AbortError') return
         console.warn('分享失败', err)
         alert('分享失败，请稍后再试')
       }
@@ -1031,6 +1048,59 @@ export default {
 .modal-submit {
   width: 100%;
   margin-top: 4px;
+}
+
+.site-footer {
+  margin-top: 20px;
+  padding: 20px 10px 30px;
+  width: 100%;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.footer-divider {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto 14px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.footer-line {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.footer-sep {
+  opacity: 0.6;
+}
+
+.footer-link {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-link:hover {
+  color: #ffffff;
+}
+
+.footer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-badge img {
+  height: 18px;
+  width: auto;
 }
 
 /* 响应式设计 */
