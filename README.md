@@ -140,7 +140,7 @@ gameManager.board[0][0] = 2048
 
 ## 📄 许可证
 
-LGPL License - 非商业用途自由使用
+Apache2.0 License
 
 ## 🤝 贡献
 
